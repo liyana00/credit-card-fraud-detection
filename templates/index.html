@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fraud Detection - 7 Features</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border: none;
+            overflow: hidden;
+        }
+        .main-card {
+            background: white;
+        }
+        .btn-predict {
+            background: linear-gradient(45deg, #ff416c, #ff4b2b);
+            color: white;
+            font-weight: bold;
+            padding: 12px 30px;
+            font-size: 18px;
+            border: none;
+            border-radius: 50px;
+            transition: all 0.3s;
+        }
+        .btn-predict:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(255, 65, 108, 0.4);
+        }
+        .result-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        .fraud-result {
+            background: linear-gradient(45deg, #ff416c, #ff4b2b);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .legit-result {
+            background: linear-gradient(45deg, #00b09b, #96c93d);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .feature-input {
+            margin-bottom: 15px;
+        }
+        .feature-input label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .feature-input input {
+            border-radius: 10px;
+            border: 2px solid #e0e0e0;
+            padding: 10px 15px;
+            transition: all 0.3s;
+        }
+        .feature-input input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .progress {
+            height: 30px;
+            border-radius: 15px;
+            background: #f0f0f0;
+            overflow: hidden;
+        }
+        .progress-bar {
+            background: linear-gradient(45deg, #ff416c, #ff4b2b);
+            border-radius: 15px;
+        }
+        .risk-badge {
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .risk-low {
+            background: linear-gradient(45deg, #00b09b, #96c93d);
+            color: white;
+        }
+        .risk-medium {
+            background: linear-gradient(45deg, #ff9a00, #ff5e00);
+            color: white;
+        }
+        .risk-high {
+            background: linear-gradient(45deg, #ff416c, #ff4b2b);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <!-- Header -->
+                <div class="text-center text-white mb-5">
+                    <h1 class="display-4 mb-3">💳 Fraud Detection System</h1>
+                   
+                </div>
+                
+                <!-- Main Card -->
+                <div class="card main-card mb-4">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h4 class="mb-0"><i class="fas fa-sliders-h me-2"></i> Enter Feature Values</h4>
+                    </div>
+                    <div class="card-body p-4">
+                        <form id="fraudForm">
+                            <div class="row">
+                                <!-- 7 Features -->
+                                {% for i in range(1, 8) %}
+                                <div class="col-md-6 col-lg-4 feature-input">
+                                    <label for="V{{ i }}">V{{ i }}</label>
+                                    <input type="number" step="0.000001" class="form-control" 
+                                           name="V{{ i }}" id="V{{ i }}" 
+                                           placeholder="Enter V{{ i }}" required>
+                                </div>
+                                {% endfor %}
+                                
+                                <!-- Amount -->
+                                <div class="col-md-6 col-lg-4 feature-input">
+                                    <label for="Amount">Amount ($)</label>
+                                    <input type="number" step="0.01" class="form-control" 
+                                           name="Amount" id="Amount" 
+                                           placeholder="Enter amount" required>
+                                </div>
+                            </div>
+                            
+                            <!-- Buttons -->
+                            <div class="mt-4 text-center">
+                                <button type="button" class="btn btn-outline-primary me-2" id="loadSample">
+                                    <i class="fas fa-vial me-1"></i> Load Sample
+                                </button>
+                                <button type="submit" class="btn btn-predict" id="predictBtn">
+                                    <i class="fas fa-search me-1"></i> Check for Fraud
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary ms-2" id="resetBtn">
+                                    <i class="fas fa-redo me-1"></i> Clear
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Results Card -->
+                <div class="card result-card">
+                    <div class="card-header bg-dark text-white py-3">
+                        <h4 class="mb-0"><i class="fas fa-chart-bar me-2"></i> Prediction Results</h4>
+                    </div>
+                    <div class="card-body p-4">
+                        <!-- Loading -->
+                        <div id="loading" class="text-center py-5" style="display: none;">
+                            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
+                            <h5>Analyzing transaction...</h5>
+                            <p class="text-muted">Please wait while we process your data</p>
+                        </div>
+                        
+                        <!-- Initial Message -->
+                        <div id="initialMessage" class="text-center py-5">
+                            <div class="text-muted mb-3">
+                                <i class="fas fa-chart-line fa-4x"></i>
+                            </div>
+                            <h5>Ready for Analysis</h5>
+                            <p class="text-muted">Enter the 7 feature values and amount above, then click "Check for Fraud"</p>
+                        </div>
+                        
+                        <!-- Results -->
+                        <div id="results" style="display: none;">
+                            <!-- Status -->
+                            <div id="statusBox" class="mb-4">
+                                <!-- Will be filled by JavaScript -->
+                            </div>
+                            
+                            <!-- Fraud Probability -->
+                            <div class="mb-4">
+                                <h5 class="mb-3">Fraud Probability</h5>
+                                <div class="progress mb-2">
+                                    <div id="fraudBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                         style="width: 0%">0%</div>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">0%</small>
+                                    <small id="fraudPercent" class="fw-bold">0%</small>
+                                    <small class="text-muted">100%</small>
+                                </div>
+                            </div>
+                            
+                            <!-- Stats Cards -->
+                            <div class="row mb-4">
+                                <div class="col-md-6 mb-3">
+                                    <div class="card border-success h-100">
+                                        <div class="card-body text-center">
+                                            <h6 class="text-success mb-3">
+                                                <i class="fas fa-check-circle me-1"></i> Legitimate
+                                            </h6>
+                                            <h1 id="legitPercent" class="text-success mb-0">0%</h1>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="card border-danger h-100">
+                                        <div class="card-body text-center">
+                                            <h6 class="text-danger mb-3">
+                                                <i class="fas fa-exclamation-triangle me-1"></i> Fraud
+                                            </h6>
+                                            <h1 id="fraudPercent2" class="text-danger mb-0">0%</h1>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Risk Level -->
+                            <div class="mb-4">
+                                <h5 class="mb-3">Risk Assessment</h5>
+                                <div id="riskBox" class="risk-badge">
+                                    <!-- Will be filled by JavaScript -->
+                                </div>
+                            </div>
+                            
+                            <!-- Recommendation -->
+                            <div class="alert alert-light border">
+                                <h6><i class="fas fa-lightbulb me-2 text-warning"></i> Recommendation</h6>
+                                <p id="recommendation" class="mb-0">Enter data to get recommendation</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+    
+    <!-- Font Awesome -->
+    <script src="https://kit.fontawesome.com/your-fontawesome-kit.js" crossorigin="anonymous"></script>
+    <!-- Replace with your own Font Awesome kit or use CDN -->
+    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Form submission
+            $('#fraudForm').submit(function(e) {
+                e.preventDefault();
+                checkFraud();
+            });
+            
+            // Load sample data
+            $('#loadSample').click(function() {
+                $.get('/sample', function(data) {
+                    $.each(data, function(key, value) {
+                        $('[name="' + key + '"]').val(value);
+                    });
+                    showMessage('✅ Sample data loaded successfully!', 'success');
+                });
+            });
+            
+            // Reset form
+            $('#resetBtn').click(function() {
+                $('#fraudForm')[0].reset();
+                $('#results').hide();
+                $('#initialMessage').show();
+                showMessage('🔄 Form cleared!', 'info');
+            });
+        });
+        
+        function checkFraud() {
+            // Show loading, hide other sections
+            $('#loading').show();
+            $('#results').hide();
+            $('#initialMessage').hide();
+            
+            // Get form data
+            var formData = $('#fraudForm').serialize();
+            
+            // Send request
+            $.ajax({
+                type: 'POST',
+                url: '/predict',
+                data: formData,
+                success: function(response) {
+                    $('#loading').hide();
+                    
+                    if (response.success) {
+                        displayResults(response);
+                    } else {
+                        showMessage('❌ Error: ' + response.error, 'danger');
+                        $('#initialMessage').show();
+                    }
+                },
+                error: function() {
+                    $('#loading').hide();
+                    showMessage('❌ Server error occurred', 'danger');
+                    $('#initialMessage').show();
+                }
+            });
+        }
+        
+        function displayResults(data) {
+            // Show results section
+            $('#results').show();
+            
+            // Update status
+            var statusBox = $('#statusBox');
+            
+            if (data.result === "FRAUD") {
+                statusBox.html(`
+                    <div class="fraud-result">
+                        <h2><i class="fas fa-exclamation-triangle me-2"></i> FRAUD DETECTED</h2>
+                        <p class="mb-0">This transaction has been flagged as fraudulent</p>
+                    </div>
+                `);
+            } else {
+                statusBox.html(`
+                    <div class="legit-result">
+                        <h2><i class="fas fa-check-circle me-2"></i> LEGITIMATE TRANSACTION</h2>
+                        <p class="mb-0">This transaction appears to be safe</p>
+                    </div>
+                `);
+            }
+            
+            // Update progress bar
+            var fraudPercent = data.fraud_prob + '%';
+            $('#fraudBar').css('width', fraudPercent).text(fraudPercent);
+            $('#fraudPercent').text(fraudPercent);
+            $('#fraudPercent2').text(fraudPercent);
+            
+            // Update legitimate percentage
+            $('#legitPercent').text(data.legit_prob + '%');
+            
+            // Update risk level
+            var riskBox = $('#riskBox');
+            riskBox.removeClass('risk-low risk-medium risk-high');
+            
+            if (data.color === 'success') {
+                riskBox.addClass('risk-low').html(`<h3 class="mb-0">${data.risk} RISK</h3>`);
+            } else if (data.color === 'warning') {
+                riskBox.addClass('risk-medium').html(`<h3 class="mb-0">${data.risk} RISK</h3>`);
+            } else {
+                riskBox.addClass('risk-high').html(`<h3 class="mb-0">${data.risk} RISK</h3>`);
+            }
+            
+            // Update recommendation
+            var recommendation = $('#recommendation');
+            if (data.result === "FRAUD") {
+                recommendation.text('🚨 IMMEDIATE ACTION REQUIRED: Block this transaction and alert the security team. Contact the cardholder for verification.');
+            } else if (data.risk === "HIGH" || data.risk === "MEDIUM") {
+                recommendation.text('⚠️ ADDITIONAL VERIFICATION RECOMMENDED: This transaction shows elevated risk factors. Contact the customer for confirmation before proceeding.');
+            } else {
+                recommendation.text('✅ NO ACTION NEEDED: This transaction appears to be legitimate and safe. You may proceed normally.');
+            }
+            
+            // Scroll to results smoothly
+            $('html, body').animate({
+                scrollTop: $('#results').offset().top - 50
+            }, 800);
+        }
+        
+        function showMessage(text, type) {
+            // Remove any existing messages
+            $('.alert-message').remove();
+            
+            // Create message element
+            var alertClass = type === 'success' ? 'alert-success' : 
+                            type === 'danger' ? 'alert-danger' : 'alert-info';
+            
+            var message = $(`
+                <div class="alert ${alertClass} alert-message alert-dismissible fade show" 
+                     style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+                    ${text}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `);
+            
+            $('body').append(message);
+            
+            // Auto remove after 4 seconds
+            setTimeout(function() {
+                message.alert('close');
+            }, 4000);
+        }
+    </script>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

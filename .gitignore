@@ -1,0 +1,6 @@
+```txt
+__pycache__/
+*.pkl
+*.env
+.env
+.ipynb_checkpoints/
